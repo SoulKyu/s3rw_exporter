@@ -28,11 +28,26 @@ type Manager struct {
 func NewManager(config *Config) (*Manager, error) {
 	download, err := os.ReadFile(config.S3.DownloadFilePath)
 	if err != nil {
-		return nil, fmt.Errorf("unable read configured download file from path '%s': %s", config.S3.DownloadFilePath, err)
+		if os.IsNotExist(err) {
+			fmt.Println("unable to read file locally, we will try to download it on S3 Bucket")
+			download = nil
+		} else {
+			return nil, fmt.Errorf("unable to read configured download file from path '%s': %s", config.S3.DownloadFilePath, err)
+		}
 	}
 	upload, err := os.ReadFile(config.S3.UploadFilePath)
 	if err != nil {
-		return nil, fmt.Errorf("unable read configured upload file from path '%s': %s", config.S3.UploadFilePath, err)
+		if os.IsNotExist(err) {
+			// Generate an empty file of 32MB.
+			fmt.Println("generating an empty upload file of 32MB...")
+			upload = make([]byte, 32*1024*1024)
+			err = os.WriteFile(config.S3.UploadFilePath, upload, 0644)
+			if err != nil {
+				return nil, fmt.Errorf("unable to create 32MB file at path '%s': %s", config.S3.UploadFilePath, err)
+			}
+		} else {
+			return nil, fmt.Errorf("unable to read configured upload file from path '%s': %s", config.S3.UploadFilePath, err)
+		}
 	}
 	return &Manager{
 		config:       config,
@@ -71,7 +86,7 @@ func (m *Manager) newSession() error {
 	return nil
 }
 
-func (m *Manager) Download() error {
+func (m *Manager) Download(withContentCheck bool) error {
 	m.entry.Debugf("starting download file : %s", m.config.S3.DownloadKey)
 	buffer := []byte{}
 	memWriter := aws.NewWriteAtBuffer(buffer)
@@ -86,9 +101,11 @@ func (m *Manager) Download() error {
 		m.entry.Errorf("unable to download file: %s", err.Error())
 		return fmt.Errorf("unable to download file: %s", err)
 	}
-	if !bytes.Equal(m.downloadFile, memWriter.Bytes()) {
-		m.entry.Errorf("downloaded file content mismatch")
-		return errors.New("downloaded file content mismatch")
+	if withContentCheck {
+		if !bytes.Equal(m.downloadFile, memWriter.Bytes()) {
+			m.entry.Errorf("downloaded file content mismatch")
+			return errors.New("downloaded file content mismatch")
+		}
 	}
 	m.entry.Debugf("file %s has been downloaded successfully", m.config.S3.DownloadKey)
 	return nil

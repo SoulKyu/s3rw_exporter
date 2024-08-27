@@ -2,13 +2,14 @@ package main
 
 import (
 	"fmt"
+	"net/http"
+	"os"
+	"strconv"
+
 	"github.com/alecthomas/kingpin/v2"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/version"
 	log "github.com/sirupsen/logrus"
-	"net/http"
-	"os"
-	"strconv"
 )
 
 var (
@@ -48,7 +49,7 @@ func main() {
 	if config.Exporter.Namespace != "" {
 		namespace = config.Exporter.Namespace
 	}
-	loadMetricsReporter(namespace)
+	loadMetricsReporter(namespace, config.S3.Bucket, config.S3.URL)
 	RecordMetrics(manager)
 	http.Handle(manager.config.Exporter.Path, promhttp.Handler())
 	addr := ":" + strconv.Itoa(manager.config.Exporter.Port)

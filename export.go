@@ -27,111 +27,132 @@ var (
 	restoreError            *prometheus.GaugeVec
 )
 
-func loadMetricsReporter(namespace string) {
+func loadMetricsReporter(namespace, bucket, target string) {
 	downloadDuration = promauto.NewGauge(
 		prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      "download_duration_seconds",
-			Help:      "Last download duration in seconds",
+			Namespace:   namespace,
+			Name:        "download_duration_seconds",
+			Help:        "Last download duration in seconds",
+			ConstLabels: prometheus.Labels{"target": target, "bucket": bucket},
 		})
 	uploadDuration = promauto.NewGauge(
 		prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      "upload_duration_seconds",
-			Help:      "Last upload duration in seconds",
+			Namespace:   namespace,
+			Name:        "upload_duration_seconds",
+			Help:        "Last upload duration in seconds",
+			ConstLabels: prometheus.Labels{"target": target, "bucket": bucket},
 		})
 	multipartUploadDuration = promauto.NewGauge(
 		prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      "multipart_upload_duration_seconds",
-			Help:      "Last multipart upload duration in seconds",
+			Namespace:   namespace,
+			Name:        "multipart_upload_duration_seconds",
+			Help:        "Last multipart upload duration in seconds",
+			ConstLabels: prometheus.Labels{"target": target, "bucket": bucket},
 		})
 	deleteDuration = promauto.NewGauge(
 		prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      "delete_duration_seconds",
-			Help:      "Last delete duration in seconds",
+			Namespace:   namespace,
+			Name:        "delete_duration_seconds",
+			Help:        "Last delete duration in seconds",
+			ConstLabels: prometheus.Labels{"target": target, "bucket": bucket},
 		})
 	restoreDuration = promauto.NewGauge(
 		prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      "restore_duration_seconds",
-			Help:      "Last restore duration in seconds",
+			Namespace:   namespace,
+			Name:        "restore_duration_seconds",
+			Help:        "Last restore duration in seconds",
+			ConstLabels: prometheus.Labels{"target": target, "bucket": bucket},
 		})
 	downloadStatus = promauto.NewGauge(
 		prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      "download_status",
-			Help:      "Last download status, 1 is ok",
+			Namespace:   namespace,
+			Name:        "download_status",
+			Help:        "Last download status, 1 is ok",
+			ConstLabels: prometheus.Labels{"target": target, "bucket": bucket},
 		})
 	uploadStatus = promauto.NewGauge(
 		prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      "upload_status",
-			Help:      "Last upload status, 1 is ok",
+			Namespace:   namespace,
+			Name:        "upload_status",
+			Help:        "Last upload status, 1 is ok",
+			ConstLabels: prometheus.Labels{"target": target, "bucket": bucket},
 		})
 	multipartUploadStatus = promauto.NewGauge(
 		prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      "multipart_upload_status",
-			Help:      "Last multipart upload status, 1 is ok",
+			Namespace:   namespace,
+			Name:        "multipart_upload_status",
+			Help:        "Last multipart upload status, 1 is ok",
+			ConstLabels: prometheus.Labels{"target": target, "bucket": bucket},
 		})
 	deleteStatus = promauto.NewGauge(
 		prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      "delete_status",
-			Help:      "Last delete status, 1 is ok",
+			Namespace:   namespace,
+			Name:        "delete_status",
+			Help:        "Last delete status, 1 is ok",
+			ConstLabels: prometheus.Labels{"target": target, "bucket": bucket},
 		})
 	restoreStatus = promauto.NewGauge(
 		prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      "restore_status",
-			Help:      "Last restore status, 1 is ok",
+			Namespace:   namespace,
+			Name:        "restore_status",
+			Help:        "Last restore status, 1 is ok",
+			ConstLabels: prometheus.Labels{"target": target, "bucket": bucket},
 		})
 	downloadError = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      "download_errors",
-			Help:      "Active download errors",
+			Namespace:   namespace,
+			Name:        "download_errors",
+			Help:        "Active download errors",
+			ConstLabels: prometheus.Labels{"target": target, "bucket": bucket},
 		}, []string{"error"},
 	)
 	uploadError = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      "upload_errors",
-			Help:      "Active upload errors",
+			Namespace:   namespace,
+			Name:        "upload_errors",
+			Help:        "Active upload errors",
+			ConstLabels: prometheus.Labels{"target": target, "bucket": bucket},
 		}, []string{"error"},
 	)
 	multipartUploadError = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      "multipart_upload_errors",
-			Help:      "Active multipart upload errors",
+			Namespace:   namespace,
+			Name:        "multipart_upload_errors",
+			Help:        "Active multipart upload errors",
+			ConstLabels: prometheus.Labels{"target": target, "bucket": bucket},
 		}, []string{"error"},
 	)
 	deleteError = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      "delete_errors",
-			Help:      "Active delete errors",
+			Namespace:   namespace,
+			Name:        "delete_errors",
+			Help:        "Active delete errors",
+			ConstLabels: prometheus.Labels{"target": target, "bucket": bucket},
 		}, []string{"error"},
 	)
 	restoreError = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      "restore_errors",
-			Help:      "Active restore errors",
+			Namespace:   namespace,
+			Name:        "restore_errors",
+			Help:        "Active restore errors",
+			ConstLabels: prometheus.Labels{"target": target, "bucket": bucket},
 		}, []string{"error"},
 	)
 }
 
 // RecordMetrics -
 func RecordMetrics(manager *Manager) {
+	if err := manager.newSession(); err != nil {
+		log.Fatalf("failed to create S3 session: %s", err)
+	}
+	if manager.downloadFile == nil {
+		manager.entry.Debugf("try to get \"download file\" on the s3 bucket")
+		if err := manager.Download(false); err != nil {
+			log.Fatalf("enable to get the \"download file\" %s", err)
+		}
+	}
 	go func() {
 		for {
-			if err := manager.newSession(); err != nil {
-				log.Fatalf("failed to create S3 session: %s", err)
-			}
 			uploadError.Reset()
 			start := time.Now()
 			if err := manager.Upload(); err != nil {
@@ -191,7 +212,7 @@ func RecordMetrics(manager *Manager) {
 
 			downloadError.Reset()
 			start = time.Now()
-			if err := manager.Download(); err != nil {
+			if err := manager.Download(false); err != nil {
 				downloadError.With(prometheus.Labels{
 					"error": err.Error(),
 				}).Set(1)
