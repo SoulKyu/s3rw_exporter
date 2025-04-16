@@ -3,7 +3,7 @@ log:
   level: DEBUG
 
 exporter:
-  port: 22546
+  port: 8080
   path: /metrics
   namespace: s3rw
   interval_duration: 10m
